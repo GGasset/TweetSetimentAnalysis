@@ -1,1 +1,1 @@
-train_dataset_path = './twitter_training'
+train_dataset_path = './twitter_training.csv'
