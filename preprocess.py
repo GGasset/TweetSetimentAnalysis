@@ -14,18 +14,12 @@ dataset = pd.read_csv(cleaned_train_dataset_path)
 #                                                                                                        delete for production
 dataset = dataset[np.logical_not(dataset['sentiment'].isna()) & np.logical_not(dataset['tweet'].isna())].drop_duplicates(subset='sentiment')
 dataset: pd.DataFrame = dataset
-possible_sentiments = dataset['sentiment'].unique()
+possible_sentiments = list(dataset['sentiment'].unique())
 
-words_to_exclude = 'and a is on etc'.split(' ')
-punctuations = list('.,?!$\"&')
-vocabulary = set()
-cleaned_tweets = []
-tweets_sentiment = []
-stemmer = nltk.PorterStemmer()
-i = 0
-for tweet, sentiment in zip(dataset['tweet'], dataset['sentiment']):
-    tweet: str = tweet
-    sentiment: str = sentiment
+def clean_tweet(tweet: str, sentiment: str, possible_sentiments: list[str], to_update_groupby_word_and_sentiment_count: dict[dict[int]] = None, vocabulary: set = None) -> tuple[str, dict[dict[int]], set]:
+    stemmer = nltk.PorterStemmer()
+    words_to_exclude = 'and a is on etc'.split(' ')
+    punctuations = list('.,?!$\"&')
     for punctuation in punctuations:
         tweet.replace(punctuation, ' ')
         tweet.replace('  ', ' ')
@@ -41,13 +35,33 @@ for tweet, sentiment in zip(dataset['tweet'], dataset['sentiment']):
         word: str = word
         if word in cleaned_tweet:
             continue
-
-        vocabulary.add(word.removeprefix('#'))
+        
+        word = word.removeprefix('#')
+        vocabulary.add(word)
         cleaned_tweet += f' {word}'
+        if to_update_groupby_word_and_sentiment_count is not None:
+            if word not in to_update_groupby_word_and_sentiment_count.keys():
+                for possible_sentiment in possible_sentiments:
+                    to_update_groupby_word_and_sentiment_count[word][possible_sentiment] = 0
+
+            to_update_groupby_word_and_sentiment_count[word][sentiment] += 1
+
     cleaned_tweet = cleaned_tweet.removeprefix(' ')
+    return (cleaned_tweet, to_update_groupby_word_and_sentiment_count, vocabulary)
+
+vocabulary = set()
+cleaned_tweets = []
+tweets_sentiment = []
+
+#                           word|sentiment|count
+groupby_word_and_sentiment_count: dict[dict[int]] = {}
+i = 0
+for tweet, sentiment in zip(dataset['tweet'], dataset['sentiment']):
+    tweet: str = tweet
+    sentiment: str = sentiment
     
-    cleaned_tweets.append(cleaned_tweet)
-    tweets_sentiment.append(sentiment)
+    cleaned_tweet, groupby_word_and_sentiment_count, vocabulary = clean_tweet(tweet, sentiment, possible_sentiments, groupby_word_and_sentiment_count, vocabulary)
+    
     i += 1
     print(cleaned_tweet)
     print(f'{i} out of {len(dataset["tweet"])} tweets cleaned, added {len(vocabulary)} words to vocabulary', end='\n\n')
@@ -69,8 +83,9 @@ def create_tables(cursor: Cursor, unique_sentiments: list[str]):
         sentiment_cols += f'{prefix}{sentiment.lower()} TEXT NOT NULL'
     sentiment_cols = sentiment_cols.removeprefix(prefix)
     cursor.execute('CREATE TABLE per_word_per_sentiment_count \n(\n\tword_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT\n\t, {}\n);'.format(sentiment_cols))
+    cursor.execute('CREATE TABLE tweets (tweet TEXT NOT NULL)')
 
-def populate_tables(cursor: Cursor, per_word_sentiment_count: dict[tuple[str, list[tuple[str, int]]]]):
+def populate_tables(cursor: Cursor, per_word_sentiment_count: dict[dict[int]]):
     pass
 
 create_tables(db, unique_sentiments=possible_sentiments)
