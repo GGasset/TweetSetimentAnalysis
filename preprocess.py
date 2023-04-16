@@ -16,13 +16,13 @@ dataset = dataset[np.logical_not(dataset['sentiment'].isna()) & np.logical_not(d
 dataset: pd.DataFrame = dataset
 possible_sentiments = list(dataset['sentiment'].unique())
 
-def clean_tweet(tweet: str, sentiment: str, possible_sentiments: list[str], to_update_groupby_word_and_sentiment_count: dict[dict[int]] = None, vocabulary: set = None) -> tuple[str, dict[dict[int]], set]:
+def clean_tweet(tweet: str, sentiment: str, possible_sentiments: list[str], to_update_groupby_word_and_sentiment_count: dict[dict[int]] = None, vocabulary: set = None) -> str | tuple[str, dict[dict[int]], set]:
     stemmer = nltk.PorterStemmer()
     words_to_exclude = 'and a is on etc'.split(' ')
-    punctuations = list('.,?!$\"&')
+    punctuations = list('.,?!$\"&()/')
     for punctuation in punctuations:
-        tweet.replace(punctuation, ' ')
-        tweet.replace('  ', ' ')
+        tweet = tweet.replace(punctuation, ' ')
+        tweet = tweet.replace('  ', ' ')
     words_in_tweet = tweet.split(' ')
 
     cleaned_tweet = ''
@@ -37,20 +37,24 @@ def clean_tweet(tweet: str, sentiment: str, possible_sentiments: list[str], to_u
             continue
         
         word = word.removeprefix('#')
-        vocabulary.add(word)
         cleaned_tweet += f' {word}'
-        if to_update_groupby_word_and_sentiment_count is not None:
+        cleaned_tweet = cleaned_tweet.removeprefix(' ')
+        if to_update_groupby_word_and_sentiment_count is not None and vocabulary is not None:
+            vocabulary.add(word)
             if word not in to_update_groupby_word_and_sentiment_count.keys():
+                to_update_groupby_word_and_sentiment_count[word] = {}
                 for possible_sentiment in possible_sentiments:
                     to_update_groupby_word_and_sentiment_count[word][possible_sentiment] = 0
 
             to_update_groupby_word_and_sentiment_count[word][sentiment] += 1
 
-    cleaned_tweet = cleaned_tweet.removeprefix(' ')
-    return (cleaned_tweet, to_update_groupby_word_and_sentiment_count, vocabulary)
+    if vocabulary is not None and to_update_groupby_word_and_sentiment_count is not None:
+        return (cleaned_tweet, to_update_groupby_word_and_sentiment_count, vocabulary)
+    
+    return cleaned_tweet
 
 vocabulary = set()
-tweets_sentiment = list(dataset['tweet'])
+tweets_sentiment = []
 cleaned_tweets = []
 
 #                           word|sentiment|count
@@ -61,7 +65,9 @@ for tweet, sentiment in zip(dataset['tweet'], dataset['sentiment']):
     sentiment: str = sentiment
     
     cleaned_tweet, groupby_word_and_sentiment_count, vocabulary = clean_tweet(tweet, sentiment, possible_sentiments, groupby_word_and_sentiment_count, vocabulary)
-    
+    cleaned_tweets.append(cleaned_tweet)
+    tweets_sentiment.append(sentiment)
+
     i += 1
     print(cleaned_tweet)
     print(f'{i} out of {len(dataset["tweet"])} tweets cleaned, added {len(vocabulary)} words to vocabulary', end='\n\n')
@@ -76,17 +82,27 @@ database_file.close()
 db = connect(train_database_path).cursor()
 
 def create_tables(cursor: Cursor, unique_sentiments: list[str]):
-    cursor.execute('CREATE TABLE words (word_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, words TEXT UNIQUE NOT NULL)')
+    cursor.execute('CREATE TABLE words (word_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, word TEXT UNIQUE NOT NULL);')
     sentiment_cols = ''
     prefix = '\n\t, '
     for sentiment in unique_sentiments:
         sentiment_cols += f'{prefix}{sentiment.lower()} TEXT NOT NULL'
     sentiment_cols = sentiment_cols.removeprefix(prefix)
     cursor.execute('CREATE TABLE per_word_per_sentiment_count \n(\n\tword_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT\n\t, {}\n);'.format(sentiment_cols))
-    cursor.execute('CREATE TABLE tweets (tweet TEXT NOT NULL, sentiment TEXT NOT NULL)')
+    cursor.execute('CREATE TABLE tweets (tweet TEXT NOT NULL, sentiment TEXT NOT NULL);')
+    cursor.connection.commit()
 
 def populate_tables(cursor: Cursor, tweets_and_sentiments: list[tuple[str, str]], vocabulary: set, groupby_word_and_sentiment_count: dict[dict[int]]):
-    pass
+    for word in vocabulary:
+        cursor.execute('INSERT INTO words (word) VALUES (?)', (word,))
+    print(f'Inserted {len(vocabulary)} words into database.')
+
+    tweets_and_sentiments: list[tuple[str, str]] = list(tweets_and_sentiments)
+    for tweet_sentiment_tuple in tweets_and_sentiments:
+        cursor.execute('INSERT INTO tweets (tweet, sentiment) VALUES (?, ?)', tweet_sentiment_tuple)
+    print(f'Inserted {len(tweets_and_sentiments)} tweets into database.')
+
+    cursor.connection.commit()
 
 create_tables(db, unique_sentiments=possible_sentiments)
 populate_tables(db, zip(cleaned_tweets, tweets_sentiment), vocabulary, groupby_word_and_sentiment_count)
