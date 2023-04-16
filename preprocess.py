@@ -50,8 +50,8 @@ def clean_tweet(tweet: str, sentiment: str, possible_sentiments: list[str], to_u
     return (cleaned_tweet, to_update_groupby_word_and_sentiment_count, vocabulary)
 
 vocabulary = set()
+tweets_sentiment = list(dataset['tweet'])
 cleaned_tweets = []
-tweets_sentiment = []
 
 #                           word|sentiment|count
 groupby_word_and_sentiment_count: dict[dict[int]] = {}
@@ -83,13 +83,13 @@ def create_tables(cursor: Cursor, unique_sentiments: list[str]):
         sentiment_cols += f'{prefix}{sentiment.lower()} TEXT NOT NULL'
     sentiment_cols = sentiment_cols.removeprefix(prefix)
     cursor.execute('CREATE TABLE per_word_per_sentiment_count \n(\n\tword_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT\n\t, {}\n);'.format(sentiment_cols))
-    cursor.execute('CREATE TABLE tweets (tweet TEXT NOT NULL)')
+    cursor.execute('CREATE TABLE tweets (tweet TEXT NOT NULL, sentiment TEXT NOT NULL)')
 
-def populate_tables(cursor: Cursor, per_word_sentiment_count: dict[dict[int]]):
+def populate_tables(cursor: Cursor, tweets_and_sentiments: list[tuple[str, str]], vocabulary: set, groupby_word_and_sentiment_count: dict[dict[int]]):
     pass
 
 create_tables(db, unique_sentiments=possible_sentiments)
-
+populate_tables(db, zip(cleaned_tweets, tweets_sentiment), vocabulary, groupby_word_and_sentiment_count)
 
 for tweet, sentiment in zip(cleaned_tweets, tweets_sentiment):
     words = tweet.split(' ')
