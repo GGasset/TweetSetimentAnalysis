@@ -120,13 +120,14 @@ def populate_tables(cursor: Cursor, tweets_and_sentiments: zip, vocabulary: set,
     sentiment_columns_str = sentiment_columns_str.removeprefix(', ')
     insert_parameters = insert_parameters.removeprefix(', ')
 
+    sentiment_count = len(unique_sentiments)
     total_relationships = len(groupby_word_and_sentiment_count.keys()) * len(unique_sentiments)
     counter = 0
     for word in groupby_word_and_sentiment_count.keys():
         sentiment_count_for_word = tuple((int(groupby_word_and_sentiment_count[word][sentiment]) for sentiment in unique_sentiments))
         word_id = db.execute('SELECT word_id FROM words WHERE word = ?', (word,)).fetchall()[0][0]
         db.execute('INSERT INTO groupby_word_and_sentiment_count (word_id, {}) VALUES (?, {})'.format(sentiment_columns_str, insert_parameters), (word_id,) + sentiment_count_for_word)
-        counter += 1
+        counter += sentiment_count
         if not counter % 100:
             print(f'{counter}/{total_relationships + 1} inserted relationships')
     print(f'Inserted {total_relationships} sentiment-word relationship counts')
