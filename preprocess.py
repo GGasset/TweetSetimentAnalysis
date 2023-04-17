@@ -99,6 +99,7 @@ def create_tables(cursor: Cursor, unique_sentiments: list[str]):
     sentiment_cols = sentiment_cols.removeprefix(prefix)
     cursor.execute('CREATE TABLE groupby_word_sentiment_count \n(\n\tword_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT\n\t, {}\n);'.format(sentiment_cols))
     cursor.execute('CREATE TABLE tweets (tweet TEXT NOT NULL, sentiment TEXT NOT NULL);')
+    cursor.execute('CREATE TABLE unique_sentiments (sentiment TEXT UNIQUE NOT NULL)')
     cursor.connection.commit()
 
 def populate_tables(cursor: Cursor, tweets_and_sentiments: zip, vocabulary: set, groupby_word_and_sentiment_count: dict[dict[int]], unique_sentiments: list[str], iterations_per_message: int = 10 ** 4):
@@ -110,6 +111,9 @@ def populate_tables(cursor: Cursor, tweets_and_sentiments: zip, vocabulary: set,
         if not counter % iterations_per_message:
             print(f'{counter}/{word_count} inserted words')
     print(f'Inserted {word_count} words into database.')
+
+    for sentiment in unique_sentiments:
+        cursor.execute('INSERT INTO unique_sentiments (sentiment) VALUES (?)', (sentiment,))
 
     tweets_and_sentiments: list[tuple[str, str]] = list(tweets_and_sentiments)
     total_tweets_sentiments = len(tweets_and_sentiments)
