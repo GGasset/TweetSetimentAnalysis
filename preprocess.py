@@ -28,7 +28,7 @@ def main():
         tweet: str = tweet
         sentiment: str = sentiment
         
-        cleaned_tweet, groupby_word_and_sentiment_count, vocabulary = clean_tweet(tweet, sentiment, possible_sentiments, groupby_word_and_sentiment_count, vocabulary)
+        cleaned_tweet, groupby_word_and_sentiment_count, vocabulary = clean_tweet(tweet, groupby_word_and_sentiment_count, vocabulary, sentiment, possible_sentiments)
         cleaned_tweets.append(cleaned_tweet)
         tweets_sentiment.append(sentiment)
 
@@ -53,7 +53,7 @@ def main():
         print('Connection closed.')
 
 
-def clean_tweet(tweet: str, sentiment: str, possible_sentiments: list[str], to_update_groupby_word_and_sentiment_count: dict[dict[int]] = None, vocabulary: set = None) -> str | tuple[str, dict[dict[int]], set]:
+def clean_tweet(tweet: str, to_update_groupby_word_and_sentiment_count: dict[dict[int]] = None, vocabulary: set = None, sentiment: str = ..., possible_sentiments: list[str] = ...) -> str | tuple[str, dict[dict[int]], set]:
     stemmer = nltk.PorterStemmer()
     words_to_exclude = 'and a is on etc'.split(' ')
     punctuations = list('.,?!$\"&()/')
