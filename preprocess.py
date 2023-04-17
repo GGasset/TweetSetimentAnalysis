@@ -86,13 +86,13 @@ def create_tables(cursor: Cursor, unique_sentiments: list[str]):
     sentiment_cols = ''
     prefix = '\n\t, '
     for sentiment in unique_sentiments:
-        sentiment_cols += f'{prefix}{sentiment.lower()} TEXT NOT NULL'
+        sentiment_cols += f'{prefix}{sentiment.lower()} INTEGER NOT NULL'
     sentiment_cols = sentiment_cols.removeprefix(prefix)
-    cursor.execute('CREATE TABLE per_word_per_sentiment_count \n(\n\tword_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT\n\t, {}\n);'.format(sentiment_cols))
+    cursor.execute('CREATE TABLE groupby_word_and_sentiment_count \n(\n\tword_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT\n\t, {}\n);'.format(sentiment_cols))
     cursor.execute('CREATE TABLE tweets (tweet TEXT NOT NULL, sentiment TEXT NOT NULL);')
     cursor.connection.commit()
 
-def populate_tables(cursor: Cursor, tweets_and_sentiments: list[tuple[str, str]], vocabulary: set, groupby_word_and_sentiment_count: dict[dict[int]]):
+def populate_tables(cursor: Cursor, tweets_and_sentiments: zip, vocabulary: set, groupby_word_and_sentiment_count: dict[dict[int]], unique_sentiments: list[str]):
     for word in vocabulary:
         cursor.execute('INSERT INTO words (word) VALUES (?)', (word,))
     print(f'Inserted {len(vocabulary)} words into database.')
@@ -102,10 +102,25 @@ def populate_tables(cursor: Cursor, tweets_and_sentiments: list[tuple[str, str]]
         cursor.execute('INSERT INTO tweets (tweet, sentiment) VALUES (?, ?)', tweet_sentiment_tuple)
     print(f'Inserted {len(tweets_and_sentiments)} tweets into database.')
 
+
+    sentiment_columns_str = ''
+    insert_parameters = ''
+    for sentiment in unique_sentiments:
+        sentiment_columns_str += f', {sentiment}'
+        insert_parameters += ', ?'
+    sentiment_columns_str = sentiment_columns_str.removeprefix(', ')
+    insert_parameters = insert_parameters.removeprefix(', ')
+
+    for word in groupby_word_and_sentiment_count.keys():
+        sentiment_count_for_word = tuple((int(groupby_word_and_sentiment_count[word][sentiment]) for sentiment in unique_sentiments))
+        word_id = db.execute('SELECT word_id FROM words WHERE word = ?', (word,)).fetchall()[0][0]
+        db.execute('INSERT INTO groupby_word_and_sentiment_count (word_id, {}) VALUES (?, {})'.format(sentiment_columns_str, insert_parameters), (word_id,) + sentiment_count_for_word)
+    print(f'Inserted {len(groupby_word_and_sentiment_count.keys()) * len(unique_sentiments)} sentiment-word relationship counts')
+
     cursor.connection.commit()
 
 create_tables(db, unique_sentiments=possible_sentiments)
-populate_tables(db, zip(cleaned_tweets, tweets_sentiment), vocabulary, groupby_word_and_sentiment_count)
+populate_tables(db, zip(cleaned_tweets, tweets_sentiment), vocabulary, groupby_word_and_sentiment_count, possible_sentiments)
 
 for tweet, sentiment in zip(cleaned_tweets, tweets_sentiment):
     words = tweet.split(' ')
