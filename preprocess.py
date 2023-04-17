@@ -6,14 +6,52 @@ import nltk
 
 from variables import cleaned_train_dataset_path, train_database_path
 
-if not os.path.isfile(cleaned_train_dataset_path):
-    print('First run setup.py')
-    quit(1)
+def main():
+    # collect data
+    if not os.path.isfile(cleaned_train_dataset_path):
+        print('First run setup.py')
+        quit(1)
 
-dataset = pd.read_csv(cleaned_train_dataset_path)
-dataset = dataset[np.logical_not(dataset['sentiment'].isna()) & np.logical_not(dataset['tweet'].isna())]
-dataset: pd.DataFrame = dataset
-possible_sentiments = list(dataset['sentiment'].unique())
+    dataset = pd.read_csv(cleaned_train_dataset_path)
+    dataset = dataset[np.logical_not(dataset['sentiment'].isna()) & np.logical_not(dataset['tweet'].isna())]
+    dataset: pd.DataFrame = dataset
+    possible_sentiments = list(dataset['sentiment'].unique())
+    vocabulary = set()
+    tweets_sentiment = []
+    cleaned_tweets = []
+
+    # clean and preprocess data
+    #                              word|sentiment|count
+    groupby_word_and_sentiment_count: dict[dict[int]] = {}
+    i = 0
+    for tweet, sentiment in zip(dataset['tweet'], dataset['sentiment']):
+        tweet: str = tweet
+        sentiment: str = sentiment
+        
+        cleaned_tweet, groupby_word_and_sentiment_count, vocabulary = clean_tweet(tweet, sentiment, possible_sentiments, groupby_word_and_sentiment_count, vocabulary)
+        cleaned_tweets.append(cleaned_tweet)
+        tweets_sentiment.append(sentiment)
+
+        i += 1
+        print(cleaned_tweet)
+        print(f'{i} out of {len(dataset["tweet"])} tweets cleaned, added {len(vocabulary)} words to vocabulary', end='\n\n')
+
+    # insert data into database
+    try:
+        if os.path.isfile(train_database_path):
+            os.remove(train_database_path)
+
+        database_file = open(train_database_path, mode='w')
+        database_file.close()
+
+        db = connect(train_database_path).cursor()
+
+        create_tables(db, unique_sentiments=possible_sentiments)
+        populate_tables(db, zip(cleaned_tweets, tweets_sentiment), vocabulary, groupby_word_and_sentiment_count, possible_sentiments)
+    finally:
+        db.close()
+        print('Connection closed.')
+
 
 def clean_tweet(tweet: str, sentiment: str, possible_sentiments: list[str], to_update_groupby_word_and_sentiment_count: dict[dict[int]] = None, vocabulary: set = None) -> str | tuple[str, dict[dict[int]], set]:
     stemmer = nltk.PorterStemmer()
@@ -51,25 +89,6 @@ def clean_tweet(tweet: str, sentiment: str, possible_sentiments: list[str], to_u
         return (cleaned_tweet, to_update_groupby_word_and_sentiment_count, vocabulary)
     
     return cleaned_tweet
-
-vocabulary = set()
-tweets_sentiment = []
-cleaned_tweets = []
-
-#                           word|sentiment|count
-groupby_word_and_sentiment_count: dict[dict[int]] = {}
-i = 0
-for tweet, sentiment in zip(dataset['tweet'], dataset['sentiment']):
-    tweet: str = tweet
-    sentiment: str = sentiment
-    
-    cleaned_tweet, groupby_word_and_sentiment_count, vocabulary = clean_tweet(tweet, sentiment, possible_sentiments, groupby_word_and_sentiment_count, vocabulary)
-    cleaned_tweets.append(cleaned_tweet)
-    tweets_sentiment.append(sentiment)
-
-    i += 1
-    print(cleaned_tweet)
-    print(f'{i} out of {len(dataset["tweet"])} tweets cleaned, added {len(vocabulary)} words to vocabulary', end='\n\n')
 
 def create_tables(cursor: Cursor, unique_sentiments: list[str]):
     cursor.execute('CREATE TABLE words (word_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, word TEXT UNIQUE NOT NULL);')
@@ -125,17 +144,5 @@ def populate_tables(cursor: Cursor, tweets_and_sentiments: zip, vocabulary: set,
 
     cursor.connection.commit()
 
-try:
-    if os.path.isfile(train_database_path):
-        os.remove(train_database_path)
-
-    database_file = open(train_database_path, mode='w')
-    database_file.close()
-
-    db = connect(train_database_path).cursor()
-
-    create_tables(db, unique_sentiments=possible_sentiments)
-    populate_tables(db, zip(cleaned_tweets, tweets_sentiment), vocabulary, groupby_word_and_sentiment_count, possible_sentiments)
-finally:
-    db.close()
-    print('Connection closed.')
+if __name__ == '__main__':
+    main()
