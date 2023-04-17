@@ -91,13 +91,13 @@ def create_tables(cursor: Cursor, unique_sentiments: list[str]):
     cursor.execute('CREATE TABLE tweets (tweet TEXT NOT NULL, sentiment TEXT NOT NULL);')
     cursor.connection.commit()
 
-def populate_tables(cursor: Cursor, tweets_and_sentiments: zip, vocabulary: set, groupby_word_and_sentiment_count: dict[dict[int]], unique_sentiments: list[str]):
+def populate_tables(cursor: Cursor, tweets_and_sentiments: zip, vocabulary: set, groupby_word_and_sentiment_count: dict[dict[int]], unique_sentiments: list[str], iterations_per_message: int = 10 ** 4):
     word_count = len(vocabulary)
     counter = 0
     for word in vocabulary:
         cursor.execute('INSERT INTO words (word) VALUES (?)', (word,))
         counter += 1
-        if not counter % 100:
+        if not counter % iterations_per_message:
             print(f'{counter}/{word_count} inserted words')
     print(f'Inserted {word_count} words into database.')
 
@@ -107,7 +107,7 @@ def populate_tables(cursor: Cursor, tweets_and_sentiments: zip, vocabulary: set,
     for tweet_sentiment_tuple in tweets_and_sentiments:
         cursor.execute('INSERT INTO tweets (tweet, sentiment) VALUES (?, ?)', tweet_sentiment_tuple)
         counter += 1
-        if not counter % 100:
+        if not counter % iterations_per_message:
             print(f'{counter}/{total_tweets_sentiments + 1} inserted tweets')
     print(f'Inserted {total_tweets_sentiments} tweets into database.')
 
@@ -128,7 +128,7 @@ def populate_tables(cursor: Cursor, tweets_and_sentiments: zip, vocabulary: set,
         word_id = db.execute('SELECT word_id FROM words WHERE word = ?', (word,)).fetchall()[0][0]
         db.execute('INSERT INTO groupby_word_and_sentiment_count (word_id, {}) VALUES (?, {})'.format(sentiment_columns_str, insert_parameters), (word_id,) + sentiment_count_for_word)
         counter += sentiment_count
-        if not counter % 100:
+        if not counter % iterations_per_message:
             print(f'{counter}/{total_relationships + 1} inserted relationships')
     print(f'Inserted {total_relationships} sentiment-word relationship counts')
 
