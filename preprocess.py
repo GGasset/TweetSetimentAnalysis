@@ -11,8 +11,7 @@ if not os.path.isfile(cleaned_train_dataset_path):
     quit(1)
 
 dataset = pd.read_csv(cleaned_train_dataset_path)
-#                                                                                                        delete for production
-dataset = dataset[np.logical_not(dataset['sentiment'].isna()) & np.logical_not(dataset['tweet'].isna())].drop_duplicates(subset='sentiment')
+dataset = dataset[np.logical_not(dataset['sentiment'].isna()) & np.logical_not(dataset['tweet'].isna())]
 dataset: pd.DataFrame = dataset
 possible_sentiments = list(dataset['sentiment'].unique())
 
