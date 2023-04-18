@@ -77,7 +77,7 @@ def get_sentiment_cols(db: Cursor) -> tuple[list[tuple[str]], str]:
 def clean_tweet(tweet: str, to_update_groupby_word_and_sentiment_count: dict[dict[int]] = None, vocabulary: set = None, sentiment: str = ..., possible_sentiments: list[str] = ...) -> str | tuple[str, dict[dict[int]], set]:
     stemmer = nltk.PorterStemmer()
     words_to_exclude = 'and a is on etc'.split(' ')
-    punctuations = list('.,?!$\"&()/')
+    punctuations = list('.,&()/')
     for punctuation in punctuations:
         tweet = tweet.replace(punctuation, ' ')
         tweet = tweet.replace('  ', ' ')
