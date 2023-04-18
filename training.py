@@ -34,7 +34,7 @@ def generate_model(unique_sentiments: list[str]) -> tf.keras.models.Sequential:
     return model
 
 def train_model(model: tf.keras.models.Sequential, X: tf.Tensor, Y: tf.Tensor):
-    model.fit(training_data)
+    model.fit(X, Y)
 
 def save_model(model: tf.keras.models.Sequential) -> None:
     model.save(model_path)
