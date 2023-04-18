@@ -5,7 +5,7 @@ import tensorflow as tf
 
 from preprocess import clean_tweet
 
-def generate_training_data(db: Cursor, unique_sentiments: list[str], sentiment_cols: str) -> tf.Tensor:
+def generate_training_data(db: Cursor, unique_sentiments: list[str], sentiment_cols: str) -> tuple[tf.Tensor, tf.Tensor]:
     X: list[list[int]] = []
     Y: list[list[int]] = []
 
@@ -16,8 +16,7 @@ def generate_training_data(db: Cursor, unique_sentiments: list[str], sentiment_c
         if not i % 10 ** 4:
             print(f'{i}/{len(tweet_sentiment_zip)} of appended training data')
 
-    output = tf.stack([tf.convert_to_tensor(X), tf.convert_to_tensor(Y)], axis=0)
-    return output
+    return (tf.convert_to_tensor(X), tf.convert_to_tensor(Y))
 
 def sentiment_to_output(sentiment: str, unique_sentiments: list[str]) -> list[int]:
     output = [int(possible_sentiment == sentiment) for possible_sentiment in unique_sentiments]

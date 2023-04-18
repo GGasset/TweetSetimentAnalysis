@@ -16,7 +16,8 @@ def main():
     try:
         unique_sentiments, sentiment_cols = get_sentiment_cols(db)
         model = generate_model(unique_sentiments)
-        train_model(model, generate_training_data(db, unique_sentiments, sentiment_cols))
+        X, Y = generate_training_data(db, unique_sentiments, sentiment_cols)
+        train_model(model, X, Y)
         save_model(model)
     finally:
         db.close()
@@ -32,7 +33,7 @@ def generate_model(unique_sentiments: list[str]) -> tf.keras.models.Sequential:
     model.compile(optimizer='nadam', loss=tf.keras.losses.BinaryCrossentropy(), metrics=tf.keras.metrics.BinaryAccuracy())
     return model
 
-def train_model(model: tf.keras.models.Sequential, training_data: tf.Tensor):
+def train_model(model: tf.keras.models.Sequential, X: tf.Tensor, Y: tf.Tensor):
     model.fit(training_data)
 
 def save_model(model: tf.keras.models.Sequential) -> None:
