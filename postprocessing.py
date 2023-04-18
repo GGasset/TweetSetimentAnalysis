@@ -1,9 +1,18 @@
 # This file contains any function that comes after the db and before of after the model creation and execution
 
 from sqlite3 import Cursor
+import numpy as np
 import tensorflow as tf
 
 from preprocess import clean_tweet
+
+def generate_prediction(db: Cursor, model: tf.keras.models.Sequential, tweet: str, is_cleaned: bool = False) -> dict[float]:
+    if not is_cleaned:
+        tweet = clean_tweet(tweet)
+    
+    X = get_sentiment_list_for_tweet(db, tweet)
+    output = model.predict(X)
+    return output_to_sentiment(output)
 
 def generate_training_data(db: Cursor, unique_sentiments: list[str], sentiment_cols: str) -> tuple[tf.Tensor, tf.Tensor]:
     X: list[list[int]] = []
@@ -16,18 +25,26 @@ def generate_training_data(db: Cursor, unique_sentiments: list[str], sentiment_c
         if not i % 10 ** 4:
             print(f'{i}/{len(tweet_sentiment_zip)} of appended training data')
 
-    return (tf.convert_to_tensor(X), tf.convert_to_tensor(Y))
+    return (tf.convert_to_tensor(X, dtype='uint32'), tf.convert_to_tensor(Y, dtype='uint32'))
 
 def sentiment_to_output(sentiment: str, unique_sentiments: list[str]) -> list[int]:
     output = [int(possible_sentiment == sentiment) for possible_sentiment in unique_sentiments]
     return output
 
-def output_to_sentiment(list):
-    pass
+def output_to_sentiment(model_output: np.ndarray, unique_sentiments: list[tuple[str]]) -> dict[float]:
+    model_output = list(model_output)
+    output = {}
+    for (predicted_value, sentiment) in zip(model_output, unique_sentiments):
+        sentiment = sentiment[0]
+        output[sentiment] = predicted_value
+    return output
 
-def get_sentiment_list_for_tweet(db: Cursor, tweet: str, unique_sentiments: list[tuple[str]], sentiment_cols_str: str, is_cleaned: bool = True) -> list[int]:
+def get_sentiment_list_for_tweet(db: Cursor, tweet: str, unique_sentiments: list[tuple[str]] = None, sentiment_cols_str: str = None, is_cleaned: bool = True) -> list[int]:
     if not is_cleaned:
         tweet = clean_tweet(tweet)
+
+    if unique_sentiments is None or sentiment_cols_str is None:
+        unique_sentiments, sentiment_cols_str = get_sentiment_cols(db)
 
     words = tweet.split(' ')
 
