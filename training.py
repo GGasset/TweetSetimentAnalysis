@@ -24,7 +24,7 @@ def main():
 
 def generate_model(unique_sentiments: list[str]) -> tf.keras.models.Sequential:
     model = tf.keras.models.Sequential([
-        tf.keras.layers.Dense(len(unique_sentiments), activation='sigmoid', input_shape=(len(unique_sentiments),))
+        tf.keras.layers.Dense(len(unique_sentiments), activation='sigmoid', input_shape=(None, len(unique_sentiments)))
     ])
 
     if os.path.isfile(model_path):
