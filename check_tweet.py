@@ -7,4 +7,4 @@ while True:
     if tweet == 'cancel':
         quit(0)
     print(clean_tweet(tweet))
-    print('\n\n-----------------------------------------------------\n\n')
+    print('\n\n--------------------------------------\n\n')
