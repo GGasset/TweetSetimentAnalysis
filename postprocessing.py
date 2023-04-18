@@ -10,9 +10,11 @@ def generate_training_data(db: Cursor, unique_sentiments: list[str], sentiment_c
     Y: list[list[int]] = []
 
     tweet_sentiment_zip = db.execute('SELECT tweet, sentiment FROM tweets').fetchall()
-    for tweet, sentiment in tweet_sentiment_zip:
+    for i, (tweet, sentiment) in enumerate(tweet_sentiment_zip):
         X.append(get_sentiment_list_for_tweet(db, tweet, unique_sentiments, sentiment_cols))
         Y.append(sentiment_to_output(sentiment, unique_sentiments))
+        if not i % 10 ** 4:
+            print(f'{i}/{len(tweet_sentiment_zip)} of appended training data')
 
     output = tf.stack([tf.convert_to_tensor(X), tf.convert_to_tensor(Y)], axis=0)
     return output
