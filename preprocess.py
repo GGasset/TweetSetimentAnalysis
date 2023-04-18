@@ -53,27 +53,6 @@ def main():
         db.close()
         print('Connection closed.')
 
-def get_sentiment_list_for_tweet(db: Cursor, unique_sentiments: list[tuple[str]], sentiment_cols: str, tweet: str, is_cleaned: bool = False) -> list[int]:
-    if not is_cleaned:
-        tweet = clean_tweet(tweet)
-
-    words = tweet.split(' ')
-
-    tweet_sentiments = [0 for i in range(len(unique_sentiments))]
-    for word in words:
-        word_sentiments_count = db.execute("SELECT {} FROM groupby_word_sentiment_count WHERE word_id = (SELECT word_id FROM words WHERE word = ?)".format(sentiment_cols), (word,)).fetchall()[0]
-        for sentiment_i, word_sentiment_count in enumerate(word_sentiments_count):
-            tweet_sentiments[sentiment_i] += word_sentiment_count
-    return tweet_sentiments
-
-def get_sentiment_cols(db: Cursor) -> tuple[list[tuple[str]], str]:
-    unique_sentiments = db.execute('SELECT sentiment FROM unique_sentiments').fetchall()
-    sentiment_cols = ''
-    for sentiment in unique_sentiments:
-        sentiment_cols += f', {sentiment[0]}'
-    sentiment_cols = sentiment_cols.removeprefix(', ')
-    return unique_sentiments, sentiment_cols
-
 def clean_tweet(tweet: str, to_update_groupby_word_and_sentiment_count: dict[dict[int]] = None, vocabulary: set = None, sentiment: str = ..., possible_sentiments: list[str] = ...) -> str | tuple[str, dict[dict[int]], set]:
     stemmer = nltk.PorterStemmer()
     words_to_exclude = 'and a is on etc'.split(' ')
