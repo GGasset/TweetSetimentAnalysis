@@ -13,8 +13,9 @@ def main():
         print('First run setup.py')
         quit(1)
 
-    dataset = pd.read_csv(cleaned_train_dataset_path)
+    dataset = pd.read_csv(cleaned_train_dataset_path, index_col=0)
     dataset = dataset[np.logical_not(dataset['sentiment'].isna()) & np.logical_not(dataset['tweet'].isna())]
+
     dataset: pd.DataFrame = dataset
     possible_sentiments = list(dataset['sentiment'].unique())
     vocabulary = set()
@@ -55,8 +56,12 @@ def main():
 
 def clean_tweet(tweet: str, to_update_groupby_word_and_sentiment_count: dict[dict[int]] = None, vocabulary: set = None, sentiment: str = ..., possible_sentiments: list[str] = ...) -> str | tuple[str, dict[dict[int]], set]:
     stemmer = nltk.PorterStemmer()
-    words_to_exclude = 'and a is on etc'.split(' ')
-    punctuations = list('.,&()/')
+    words_to_exclude = 'and a is on etc http:'.split(' ')
+    punctuations = list('.,/;\n')
+    characters_to_words = '!?#$@:[]{}()'
+    for char in characters_to_words:
+        tweet.replace(char, f' {char} ')
+        tweet.replace(' ', '')
     for punctuation in punctuations:
         tweet = tweet.replace(punctuation, ' ')
         tweet = tweet.replace('  ', ' ')
