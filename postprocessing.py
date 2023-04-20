@@ -39,6 +39,28 @@ def output_to_sentiment(model_output: np.ndarray, unique_sentiments: list[tuple[
         output[sentiment] = predicted_value
     return output
 
+def get_one_hot_encoded_training_data(db: Cursor):
+    pass
+
+def tweet_to_one_hot_encoding_list(tweet: str, vocabulary: set[str], is_tweet_cleaned: bool = False) -> np.ndarray:
+    if not is_tweet_cleaned:
+        tweet = clean_tweet(tweet)
+
+    tweet_words = tweet.split(' ')
+    one_hot_encoded_tweet = np.ndarray(shape=(len(tweet_words), len(vocabulary),), dtype='uint8')
+    for i, word in enumerate(tweet_words):
+        for j, vocab_word in enumerate(vocabulary):
+            one_hot_encoded_tweet[i][j] = int(word == vocab_word)
+
+
+
+def get_vocabulary(db: Cursor) -> set:
+    raw_vocab: list[tuple[str]] = db.execute('SELECT word FROM words').fetchall()
+    vocabulary = set()
+    for word in raw_vocab:
+        vocabulary.add(word)
+    return vocabulary
+
 def get_sentiment_list_for_tweet(db: Cursor, tweet: str, unique_sentiments: list[tuple[str]] = None, sentiment_cols_str: str = None, is_cleaned: bool = True) -> list[int]:
     if not is_cleaned:
         tweet = clean_tweet(tweet)
