@@ -1,5 +1,6 @@
 # This file contains any function that comes after the db and before of after the model creation and execution
 
+import ctypes
 from sqlite3 import Cursor
 import numpy as np
 import tensorflow as tf
@@ -10,9 +11,11 @@ def generate_prediction(db: Cursor, model: tf.keras.models.Sequential, tweet: st
     if not is_cleaned:
         tweet = clean_tweet(tweet)
     
-    X = get_sentiment_list_for_tweet(db, tweet)
+    X = [get_sentiment_list_for_tweet(db, tweet)]
     output = model.predict(X)
-    return output_to_sentiment(output)
+
+    unique_sentiments, _ = get_sentiment_cols(db)
+    return output_to_sentiment(output[0], unique_sentiments)
 
 def generate_training_data(db: Cursor, unique_sentiments: list[str], sentiment_cols: str) -> tuple[tf.Tensor, tf.Tensor]:
     X: list[list[int]] = []
@@ -32,7 +35,6 @@ def sentiment_to_output(sentiment: str, unique_sentiments: list[str]) -> list[in
     return output
 
 def output_to_sentiment(model_output: np.ndarray, unique_sentiments: list[tuple[str]]) -> dict[float]:
-    model_output = list(model_output)
     output = {}
     for (predicted_value, sentiment) in zip(model_output, unique_sentiments):
         sentiment = sentiment[0]
