@@ -42,7 +42,7 @@ def output_to_sentiment(model_output: np.ndarray, unique_sentiments: list[tuple[
         output[sentiment] = predicted_value
     return output
 
-def get_one_hot_encoded_training_data(db: Cursor, vocabulary: set):
+def get_one_hot_encoded_training_data(db: Cursor, vocabulary: set) -> tuple[list[np.ndarray], list[list[list[int]]]]:
     unique_sentiments, _ = get_sentiment_cols(db)
     tweet_sentiment_list = db.execute('SELECT tweet, sentiment FROM tweets').fetchall()
 
@@ -70,6 +70,7 @@ def get_one_hot_encoded_training_data(db: Cursor, vocabulary: set):
         if not i % 10 ** 4:
             print(f'Generated and appended {i} out of {len(processes)} points of training data', end='\r')
     print(f'Finished generating {len(processes)} * total words of training data points')
+    return (X, Y)
 
 def tweet_to_one_hot_encoding_list(tweet: str, vocabulary: set[str], is_tweet_cleaned: bool = False) -> np.ndarray[np.ndarray[int]]:
     if not is_tweet_cleaned:
