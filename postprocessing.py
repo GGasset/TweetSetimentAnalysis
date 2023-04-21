@@ -42,8 +42,7 @@ def output_to_sentiment(model_output: np.ndarray, unique_sentiments: list[tuple[
         output[sentiment] = predicted_value
     return output
 
-def get_one_hot_encoded_training_data(db: Cursor):
-    vocabulary = get_vocabulary(db)
+def get_one_hot_encoded_training_data(db: Cursor, vocabulary: set):
     unique_sentiments, _ = get_sentiment_cols(db)
     tweet_sentiment_list = db.execute('SELECT tweet, sentiment FROM tweets').fetchall()
 
