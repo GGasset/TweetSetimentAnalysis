@@ -84,6 +84,7 @@ def tweet_to_one_hot_encoding_list(tweet: str, vocabulary: set[str], is_tweet_cl
 
     for process in processes:
         process.join()
+        process.terminate()
     return one_hot_encoded_tweet
 
 def encode_word_with_one_hot_encoding(tweet_ndarray_pointer: ctypes._Pointer, word: str, word_i: int, vocabulary: set[str]):
