@@ -47,6 +47,7 @@ def get_one_hot_encoded_training_data(db: Cursor):
     unique_sentiments, _ = get_sentiment_cols(db)
     tweet_sentiment_list = db.execute('SELECT tweet, sentiment FROM tweets').fetchall()
 
+    pools: list[mp.Pool] = []
     processes: list = []
     X: list[np.ndarray] = []
     Y: list[list[list[int]]] = []
@@ -62,12 +63,15 @@ def get_one_hot_encoded_training_data(db: Cursor):
             print(f'Generated {i} out of {len(tweet_sentiment_list)}', end='\r')
 
     i = 0
-    for process in processes:
+    for pool, process in zip(pools, processes):
+        pool.terminate()
+        process.wait()
         X.append(process.get())
+        process.terminate()
         i += 1
         if not i % 10 ** 4:
             print(f'Generated and appended {i} out of {len(processes)} points of training data', end='\r')
-    print('Finished generating lots of training data points')
+    print(f'Finished generating {len(processes)} * total words of training data points')
 
 def tweet_to_one_hot_encoding_list(tweet: str, vocabulary: set[str], is_tweet_cleaned: bool = False) -> np.ndarray[np.ndarray[int]]:
     if not is_tweet_cleaned:
