@@ -35,8 +35,9 @@ def main():
         tweets_sentiment.append(sentiment)
 
         i += 1
-        print(cleaned_tweet)
-        print(f'{i} out of {len(dataset["tweet"])} tweets cleaned, added {len(vocabulary)} words to vocabulary', end='\n\n')
+        if not i % 10 ** 4:
+            print(cleaned_tweet)
+            print(f'{i} out of {len(dataset["tweet"])} tweets cleaned, added {len(vocabulary)} words to vocabulary', end='\n\n')
 
     # insert data into database
     try:
