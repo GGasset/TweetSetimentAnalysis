@@ -63,10 +63,9 @@ def get_one_hot_encoded_training_data(db: Cursor, vocabulary: set):
 
     i = 0
     for pool, process in zip(pools, processes):
-        pool.terminate()
         process.wait()
         X.append(process.get())
-        process.terminate()
+        pool.terminate()
         i += 1
         if not i % 10 ** 4:
             print(f'Generated and appended {i} out of {len(processes)} points of training data', end='\r')
