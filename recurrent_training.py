@@ -6,7 +6,11 @@ from variables import train_database_path, recurrent_model_path
 from postprocessing import get_one_hot_encoded_training_data
 
 def main():
-    pass
+    db: Cursor
+    try:
+        db = connect(train_database_path)
+    finally:
+        db.close()
 
 def generate_model(unique_sentiments: list[tuple[str]], vocab_length: int) -> tf.keras.models.Sequential:
     pass
