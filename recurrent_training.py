@@ -12,7 +12,7 @@ def main():
         db = connect(train_database_path)
         unique_sentiments, _ = get_sentiment_cols(db)
         vocabulary = get_vocabulary(db)
-        model = generate_model()
+        model = generate_model(unique_sentiments, vocabulary)
         X, Y = get_one_hot_encoded_training_data(db, unique_sentiments, vocabulary)
         fit_model(model, X, Y)
     finally:
