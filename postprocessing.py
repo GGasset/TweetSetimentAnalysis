@@ -42,17 +42,15 @@ def output_to_sentiment(model_output: np.ndarray, unique_sentiments: list[tuple[
         output[sentiment] = predicted_value
     return output
 
-def get_one_hot_encoded_training_data(db: Cursor, unique_sentiments: list[tuple[str]], vocabulary: set) -> tuple[list[np.ndarray], list[list[list[int]]]]:
+def get_one_hot_encoded_training_data(db: Cursor, unique_sentiments: list[tuple[str]], vocabulary: list[str]) -> tuple[list[np.ndarray], list[list[list[int]]]]:
     tweet_sentiment_list = db.execute('SELECT tweet, sentiment FROM tweets').fetchall()
 
-    pools: list[mp.Pool] = []
-    processes: list = []
     X: list[np.ndarray] = []
     Y: list[list[list[int]]] = []
 
     i = 0
     for tweet, sentiment in tweet_sentiment_list:
-        processes.append(mp.Pool().apply_async(func=tweet_to_one_hot_encoding_list, args=(tweet, vocabulary, True)))
+        X.append(tweet_to_one_hot_encoding_list(tweet))
         current_Y_of_word = sentiment_to_output(sentiment, unique_sentiments)
         current_Y = [current_Y_of_word for word_i in range(len(tweet.split(' ')))]
         Y.append(current_Y)
@@ -60,36 +58,19 @@ def get_one_hot_encoded_training_data(db: Cursor, unique_sentiments: list[tuple[
         if not i % 10 ** 4:
             print(f'Generated {i} out of {len(tweet_sentiment_list)}', end='\r')
 
-    i = 0
-    for pool, process in zip(pools, processes):
-        process.wait()
-        X.append(process.get())
-        pool.terminate()
-        i += 1
-        if not i % 10 ** 4:
-            print(f'Generated and appended {i} out of {len(processes)} points of training data', end='\r')
-    print(f'Finished generating {len(processes)} * total words of training data points')
     return (X, Y)
 
-def tweet_to_one_hot_encoding_list(tweet: str, vocabulary: set[str], is_tweet_cleaned: bool = False) -> np.ndarray[np.ndarray[int]]:
+def tweet_to_one_hot_encoding_list(tweet: str, vocabulary: list[str], is_tweet_cleaned: bool = False) -> np.ndarray[np.ndarray[int]]:
     if not is_tweet_cleaned:
         tweet = clean_tweet(tweet)
 
     tweet_words = tweet.split(' ')
     one_hot_encoded_tweet = np.ndarray(shape=(len(tweet_words), len(vocabulary),), dtype='uint8')
-    tweet_one_hot_pointer = ctypes.pointer(one_hot_encoded_tweet)
-    processes: list[mp.Process] = []
     for i, word in enumerate(tweet_words):
-        processes.append(mp.Process(target=encode_word_with_one_hot_encoding, args=(tweet_one_hot_pointer, word, i, vocabulary)))
+        one_hot_encoded_tweet[i] = np.zeros((len(vocabulary),))
+        one_hot_encoded_tweet[i][vocabulary.index(word)] = 1
 
-    for process in processes:
-        process.join()
-        process.terminate()
     return one_hot_encoded_tweet
-
-def encode_word_with_one_hot_encoding(tweet_ndarray_pointer: ctypes._Pointer, word: str, word_i: int, vocabulary: set[str]):
-    for j, vocab_word in enumerate(vocabulary):
-            tweet_ndarray_pointer.contents[word_i][j] = int(word == vocab_word)
 
 def get_vocabulary(db: Cursor) -> set:
     raw_vocab: list[tuple[str]] = db.execute('SELECT word FROM words').fetchall()
