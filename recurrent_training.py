@@ -12,9 +12,11 @@ def main():
         db = connect(train_database_path)
         unique_sentiments, _ = get_sentiment_cols(db)
         vocabulary = get_vocabulary(db)
+        vocabulary_list: list[str] = list(vocabulary)
         model = generate_model(unique_sentiments, vocabulary)
-        X, Y = get_one_hot_encoded_training_data(db, unique_sentiments, vocabulary)
+        X, Y = get_one_hot_encoded_training_data(db, unique_sentiments, vocabulary_list)
         fit_model(model, X, Y)
+        save_model(model)
     finally:
         db.close()
 
@@ -35,6 +37,9 @@ def generate_model(unique_sentiments: list[tuple[str]], vocab_length: int) -> tf
 
 def fit_model(model: tf.keras.Sequential, X: list[np.ndarray], Y: list[list[list[str]]]):
     model.fit(X, Y, batch_size=16, workers=8, use_multiprocessing=True)
+
+def save_model(model: tf.keras.models.Sequential):
+    model.save(recurrent_model_path)
 
 if __name__ == '__main__':
     main()
