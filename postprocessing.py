@@ -57,7 +57,7 @@ def get_one_hot_encoded_training_data(db: Cursor, unique_sentiments: list[tuple[
         i += 1
         if not i % 10 ** 4:
             print(f'Generated {i} out of {len(tweet_sentiment_list)}', end='\r')
-
+    print(f'Appended {len(tweet_sentiment_list)} * ')
     return (X, Y)
 
 def tweet_to_one_hot_encoding_list(tweet: str, vocabulary: list[str], is_tweet_cleaned: bool = False) -> np.ndarray[np.ndarray[int]]:
