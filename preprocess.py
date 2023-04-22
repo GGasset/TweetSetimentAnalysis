@@ -61,20 +61,21 @@ def clean_tweet(tweet: str, to_update_groupby_word_and_sentiment_count: dict[dic
     punctuations = list('.,/;\n')
     characters_to_words = '!?#$@:[]{}()'
     for char in characters_to_words:
-        tweet.replace(char, f' {char} ')
-        tweet.replace(' ', '')
+        tweet = tweet.replace(char, f' {char} ')
     for punctuation in punctuations:
         tweet = tweet.replace(punctuation, ' ')
-        tweet = tweet.replace('  ', ' ')
-    words_in_tweet = tweet.split(' ')
+    words_in_tweet = tweet.split()
 
     cleaned_tweet = ''
     for word in words_in_tweet:
+        if word.replace(' ', '') == '':
+            continue
         if os.path.islink(word):
             continue
         if word in words_to_exclude or word.startswith('@'):
             continue
         word = stemmer.stem(word)
+        
         word: str = word
         if word in cleaned_tweet:
             continue
