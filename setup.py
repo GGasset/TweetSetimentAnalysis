@@ -9,7 +9,7 @@ from variables import train_dataset_path, cleaned_train_dataset_path
 def main():
     if not os.path.isfile(train_dataset_path):
         print('First download and unzip data from: https://www.kaggle.com/datasets/kazanova/sentiment140')
-        print('Make sure to rename the uncompressed dataset to', train_dataset_path)
+        print('Make sure to rename the uncompressed dataset to', train_dataset_path.replace('./', ''))
         quit(1)
 
     columns_data: dict = {'sentiment': [], 'id': [], 'date': [], 'query': [], 'user': [], 'tweet': []}
@@ -26,8 +26,9 @@ def main():
                     columns_data[col_name].append(row[i])
                 i += 1
             if not row_i % (10 ** 3):
-                print(f'{row_i}/{(10 ** 6) * 1.6} reader rows')
+                print(f'{row_i}/{(10 ** 6) * 1.6} read rows', end='\r')
 
+    print('Read', (10 ** 6) * 1.6, 'rows')
     train_dataset = pd.DataFrame(data=columns_data)
     print(train_dataset.head())
 

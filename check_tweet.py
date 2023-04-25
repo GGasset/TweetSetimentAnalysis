@@ -21,6 +21,7 @@ try:
         print(output_to_sentiment(get_sentiment_list_for_tweet(db, tweet, unique_sentiments, sentiment_cols), unique_sentiments))
         if model is not None:
             pred = generate_prediction(db, model, tweet, is_cleaned=True)
+            print(pred)
             sentiment_with_highest_prediction = None
             highest_prediction = -10E30
             for sentiment, prediction in zip(pred.keys(), pred.values()):

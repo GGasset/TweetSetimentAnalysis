@@ -8,7 +8,7 @@ from preprocess import clean_tweet
 from postprocessing import get_sentiment_cols, generate_training_data
 
 def main():
-    print('Warning!\nThis file is obsolete as the network is not able to create accurate predictions. See recurrent_training.py, it features one-hot encoding for tweets and a RNN')
+    print('Warning!\nThis file is obsolete as the network is not able to create accurate predictions.\n See recurrent_training.py, it features one-hot encoding for tweets and a RNN')
     seconds_of_warning = 10
     for i in range(seconds_of_warning + 1):
         print(f'File will be executed in {seconds_of_warning - i} seconds', end='\r')

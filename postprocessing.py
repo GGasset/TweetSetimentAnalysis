@@ -1,12 +1,38 @@
 # This file contains any function that comes after the db and before of after the model creation and execution
-
-import ctypes
-import multiprocessing as mp
 from sqlite3 import Cursor
 import numpy as np
 import tensorflow as tf
 
 from preprocess import clean_tweet
+
+def get_one_hot_encoded_character_training_data():
+    pass
+
+def get_one_hot_encoded_word_training_data(tweet_sentiment_list: list[tuple[str, str]], unique_sentiments: list[tuple[str]], vocabulary: set[str], vocabulary_list: list[str], max_word_count: int) -> tuple[tf.Tensor, tf.Tensor]:
+    X: np.ndarray[np.ndarray[np.ndarray[int]]]
+    Y: np.ndarray[np.ndarray[np.ndarray[int]]]
+
+    X = np.zeros(shape=(len(tweet_sentiment_list), max_word_count, len(vocabulary),), dtype='uint8')
+    Y = np.zeros(shape=(len(tweet_sentiment_list), max_word_count, len(unique_sentiments),), dtype='uint8')
+    for i, (tweet, sentiment) in enumerate(tweet_sentiment_list):
+        X[i] = tweet_to_one_hot_encoding_list(tweet, vocabulary, vocabulary_list, max_word_count, is_tweet_cleaned=True)
+        Y[i] = sentiment_to_ndarray(sentiment, unique_sentiments, len(tweet.split(' ')), max_word_count)
+        print(f'Generated {i} out of {len(tweet_sentiment_list)} data points', end='\r')
+    print(f'Appended {len(tweet_sentiment_list)} * total_word_count training data points')
+    return (tf.convert_to_tensor(X), tf.convert_to_tensor(Y))
+
+def tweet_to_one_hot_encoding_list(tweet: str, vocabulary: set[str], vocabulary_list: list[str], max_word_count: int, is_tweet_cleaned: bool = False) -> np.ndarray[np.ndarray[int]]:
+    if not is_tweet_cleaned:
+        tweet = clean_tweet(tweet)
+
+    tweet_words = tweet.split(' ')
+    one_hot_encoded_tweet = np.zeros(shape=(max_word_count, len(vocabulary_list),), dtype='uint8')
+    for i, word in enumerate(tweet_words):
+        if word in vocabulary:
+            one_hot_encoded_tweet[i][vocabulary_list.index(word)] = 1
+            continue
+
+    return one_hot_encoded_tweet
 
 def generate_prediction(db: Cursor, model: tf.keras.models.Sequential, tweet: str, is_cleaned: bool = False) -> dict[float]:
     if not is_cleaned:
@@ -17,6 +43,9 @@ def generate_prediction(db: Cursor, model: tf.keras.models.Sequential, tweet: st
 
     unique_sentiments, _ = get_sentiment_cols(db)
     return output_to_sentiment(output[0], unique_sentiments)
+
+def get_max_word_count(db: Cursor):
+    return db.execute('SELECT value FROM important_values WHERE value_name = "max_tweet_word_count"').fetchall()[0][0]
 
 def generate_training_data(db: Cursor, unique_sentiments: list[str], sentiment_cols: str) -> tuple[tf.Tensor, tf.Tensor]:
     X: list[list[int]] = []
@@ -31,9 +60,15 @@ def generate_training_data(db: Cursor, unique_sentiments: list[str], sentiment_c
 
     return (tf.convert_to_tensor(X, dtype='uint32'), tf.convert_to_tensor(Y, dtype='uint32'))
 
-def sentiment_to_output(sentiment: str, unique_sentiments: list[str]) -> list[int]:
-    output = [int(possible_sentiment == sentiment) for possible_sentiment in unique_sentiments]
+def sentiment_to_ndarray(sentiment: str, unique_sentiments: list[str], word_count: int, max_word_count):
+    output = np.zeros(shape=(max_word_count, len(unique_sentiments),), dtype='uint8')
+    for i in range(word_count):
+        output[i][unique_sentiments.index(sentiment)] = 1
     return output
+
+def sentiment_to_output(sentiment: str, unique_sentiments: list[str]) -> list[int]:
+   output = [int(possible_sentiment == sentiment) for possible_sentiment in unique_sentiments]
+   return output
 
 def output_to_sentiment(model_output: np.ndarray, unique_sentiments: list[tuple[str]]) -> dict[float]:
     output = {}
@@ -42,41 +77,11 @@ def output_to_sentiment(model_output: np.ndarray, unique_sentiments: list[tuple[
         output[sentiment] = predicted_value
     return output
 
-def get_one_hot_encoded_training_data(db: Cursor, unique_sentiments: list[tuple[str]], vocabulary: list[str]) -> tuple[list[np.ndarray], list[list[list[int]]]]:
-    tweet_sentiment_list = db.execute('SELECT tweet, sentiment FROM tweets').fetchall()
-
-    X: list[np.ndarray] = []
-    Y: list[list[list[int]]] = []
-
-    i = 0
-    for tweet, sentiment in tweet_sentiment_list:
-        X.append(tweet_to_one_hot_encoding_list(tweet))
-        current_Y_of_word = sentiment_to_output(sentiment, unique_sentiments)
-        current_Y = [current_Y_of_word for word_i in range(len(tweet.split(' ')))]
-        Y.append(current_Y)
-        i += 1
-        if not i % 10 ** 4:
-            print(f'Generated {i} out of {len(tweet_sentiment_list)}', end='\r')
-    print(f'Appended {len(tweet_sentiment_list)} * ')
-    return (X, Y)
-
-def tweet_to_one_hot_encoding_list(tweet: str, vocabulary: list[str], is_tweet_cleaned: bool = False) -> np.ndarray[np.ndarray[int]]:
-    if not is_tweet_cleaned:
-        tweet = clean_tweet(tweet)
-
-    tweet_words = tweet.split(' ')
-    one_hot_encoded_tweet = np.ndarray(shape=(len(tweet_words), len(vocabulary),), dtype='uint8')
-    for i, word in enumerate(tweet_words):
-        one_hot_encoded_tweet[i] = np.zeros((len(vocabulary),))
-        one_hot_encoded_tweet[i][vocabulary.index(word)] = 1
-
-    return one_hot_encoded_tweet
-
 def get_vocabulary(db: Cursor) -> set:
     raw_vocab: list[tuple[str]] = db.execute('SELECT word FROM words').fetchall()
     vocabulary = set()
     for word in raw_vocab:
-        vocabulary.add(word)
+        vocabulary.add(word[0])
     return vocabulary
 
 def get_sentiment_list_for_tweet(db: Cursor, tweet: str, unique_sentiments: list[tuple[str]] = None, sentiment_cols_str: str = None, is_cleaned: bool = True) -> list[int]:
@@ -95,10 +100,12 @@ def get_sentiment_list_for_tweet(db: Cursor, tweet: str, unique_sentiments: list
             tweet_sentiments[sentiment_i] += word_sentiment_count
     return tweet_sentiments
 
-def get_sentiment_cols(db: Cursor) -> tuple[list[tuple[str]], str]:
+def get_sentiment_cols(db: Cursor) -> tuple[list[str], str]:
     unique_sentiments = db.execute('SELECT sentiment FROM unique_sentiments').fetchall()
     sentiment_cols = ''
     for sentiment in unique_sentiments:
         sentiment_cols += f', {sentiment[0]}'
     sentiment_cols = sentiment_cols.removeprefix(', ')
+    unique_sentiments = [possible_sentiment[0] for possible_sentiment in unique_sentiments]
     return unique_sentiments, sentiment_cols
+
