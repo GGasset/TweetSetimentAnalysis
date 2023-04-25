@@ -100,7 +100,7 @@ def clean_tweet(tweet: str, to_update_groupby_word_and_sentiment_count: dict[dic
     if vocabulary is not None and to_update_groupby_word_and_sentiment_count is not None:
         max_tweet_word_count += (len(words_in_tweet) - max_tweet_word_count) * (len(words_in_tweet) > max_tweet_word_count)
         max_character_count += (len(cleaned_tweet) - max_character_count) * (len(cleaned_tweet) > max_character_count)
-        return (cleaned_tweet, to_update_groupby_word_and_sentiment_count, vocabulary, max_tweet_word_count)
+        return (cleaned_tweet, to_update_groupby_word_and_sentiment_count, vocabulary, max_tweet_word_count, max_character_count)
     
     return cleaned_tweet
 
@@ -117,7 +117,7 @@ def create_tables(cursor: Cursor, unique_sentiments: list[str]):
     cursor.execute('CREATE TABLE important_values \n(\n\tvalue_name TEXT NOT NULL\n\t, value INTEGER NOT NULL\n)')
     cursor.connection.commit()
 
-def populate_tables(cursor: Cursor, tweets_and_sentiments: zip, vocabulary: set, groupby_word_and_sentiment_count: dict[dict[int]], unique_sentiments: list[str], max_tweet_word_count: int, iterations_per_message: int = 10 ** 2):
+def populate_tables(cursor: Cursor, tweets_and_sentiments: zip, vocabulary: set, groupby_word_and_sentiment_count: dict[dict[int]], unique_sentiments: list[str], max_tweet_word_count: int, max_char_count: int, iterations_per_message: int = 10 ** 2):
     word_count = len(vocabulary)
     counter = 0
     for word in vocabulary:
@@ -162,6 +162,7 @@ def populate_tables(cursor: Cursor, tweets_and_sentiments: zip, vocabulary: set,
     print(f'Inserted {total_relationships} sentiment-word relationship counts')
 
     cursor.execute('INSERT INTO important_values (value_name, value) VALUES ("max_tweet_word_count", ?)', (max_tweet_word_count,))
+    cursor.execute('INSERT INTO important_value (value_name, value) VALUES ("max_tweet_char_count", ?)', (max_char_count,))
 
     cursor.connection.commit()
 
