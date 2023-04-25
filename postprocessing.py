@@ -1,12 +1,29 @@
 # This file contains any function that comes after the db and before of after the model creation and execution
+import string
 from sqlite3 import Cursor
 import numpy as np
 import tensorflow as tf
 
 from preprocess import clean_tweet
 
-def get_one_hot_encoded_character_training_data():
-    pass
+def get_one_hot_encoded_character_training_data(tweet_sentiment_list: list[tuple[str, str]], unique_sentiments: list[tuple[str]], max_character_count: int):
+    ascii_chars = get_ascii_characters()
+    X = np.zeros(shape=(len(tweet_sentiment_list), max_character_count, len(ascii_chars)), dtype='uint8')
+    Y = np.zeros(shape=(len(tweet_sentiment_list), max_character_count, len(unique_sentiments)), dtype='uint8')
+    for i, (tweet, sentiment) in enumerate(tweet_sentiment_list):
+        for char_i, char in enumerate(tweet):
+            X[i, char_i] = character_to_one_hot_encoding(char, ascii_chars)
+        Y[i] = sentiment_to_ndarray(sentiment, unique_sentiments, len(tweet), max_character_count)
+
+    return tf.convert_to_tensor(X, dtype='uint8'), tf.convert_to_tensor(Y, dtype='uint8')
+
+def character_to_one_hot_encoding(character: str, ascii_chars: list[str]) -> np.ndarray[int]:
+    output = np.zeros(shape=(len(get_ascii_characters()),), dtype='uint8')
+    output[ascii_chars.index(character)] = 1
+    return output
+
+def get_ascii_characters() -> list[str]:
+    return list(string.printable)
 
 def get_one_hot_encoded_word_training_data(tweet_sentiment_list: list[tuple[str, str]], unique_sentiments: list[tuple[str]], vocabulary: set[str], vocabulary_list: list[str], max_word_count: int) -> tuple[tf.Tensor, tf.Tensor]:
     X: np.ndarray[np.ndarray[np.ndarray[int]]]
@@ -19,7 +36,7 @@ def get_one_hot_encoded_word_training_data(tweet_sentiment_list: list[tuple[str,
         Y[i] = sentiment_to_ndarray(sentiment, unique_sentiments, len(tweet.split(' ')), max_word_count)
         print(f'Generated {i} out of {len(tweet_sentiment_list)} data points', end='\r')
     print(f'Appended {len(tweet_sentiment_list)} * total_word_count training data points')
-    return (tf.convert_to_tensor(X), tf.convert_to_tensor(Y))
+    return (tf.convert_to_tensor(X, dtype='uint8'), tf.convert_to_tensor(Y, dtype='uint8'))
 
 def tweet_to_one_hot_encoding_list(tweet: str, vocabulary: set[str], vocabulary_list: list[str], max_word_count: int, is_tweet_cleaned: bool = False) -> np.ndarray[np.ndarray[int]]:
     if not is_tweet_cleaned:
